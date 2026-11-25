@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: repochat
+          POSTGRES_PASSWORD: repochat
+          POSTGRES_DB: repochat
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U repochat" --health-interval 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://repochat:repochat@localhost:5432/repochat
+      EMBEDDING_PROVIDER: hash
+      LLM_PROVIDER: none
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Lint
+        run: uv run ruff check .
+      - name: Tests (unit + integration against Postgres/pgvector)
+        run: uv run pytest -q
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://api.example.com

@@ -1,0 +1,80 @@
+# Local stack: Postgres + pgvector, LocalStack (SQS + S3), API, worker, web.
+#   cp .env.example .env   # add GITHUB_TOKEN and GROQ_API_KEY
+#   docker compose up --build
+# Web: http://localhost:3000   API: http://localhost:8000/docs
+
+x-python: &python
+  build:
+    context: .
+    dockerfile: infra/docker/python.Dockerfile
+  image: repochat-python
+  env_file:
+    - path: .env
+      required: false
+  environment: &python-env
+    DATABASE_URL: postgresql://repochat:repochat@db:5432/repochat
+    AWS_ENDPOINT_URL: http://localstack:4566
+    AWS_ACCESS_KEY_ID: test
+    AWS_SECRET_ACCESS_KEY: test
+    AWS_REGION: us-east-1
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: repochat
+      POSTGRES_PASSWORD: repochat
+      POSTGRES_DB: repochat
+    ports: ["${DB_PORT:-5432}:5432"]  # set DB_PORT if 5432 is taken locally
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U repochat"]
+      interval: 3s
+      retries: 20
+
+  localstack:
+    # Pinned community release. Newer LocalStack images may require LOCALSTACK_AUTH_TOKEN.
+    image: localstack/localstack:3.8
+    environment:
+      SERVICES: sqs,s3
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN:-}
+    ports: ["4566:4566"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:4566/_localstack/health | grep -Eq '\"sqs\": \"(available|running)\"'"]
+      interval: 3s
+      retries: 30
+
+  # One-shot: run migrations and create the queue/DLQ/bucket, then exit.
+  bootstrap:
+    <<: *python
+    command: ["python", "-m", "api.core.bootstrap"]
+    depends_on:
+      db: {condition: service_healthy}
+      localstack: {condition: service_healthy}
+
+  api:
+    <<: *python
+    ports: ["8000:8000"]
+    environment:
+      <<: *python-env
+      CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      bootstrap: {condition: service_completed_successfully}
+
+  worker:
+    <<: *python
+    command: ["python", "-m", "worker.main"]
+    depends_on:
+      bootstrap: {condition: service_completed_successfully}
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports: ["3000:3000"]
+    depends_on: [api]
+
+volumes:
+  pgdata:

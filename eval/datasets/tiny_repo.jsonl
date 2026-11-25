@@ -1,0 +1,15 @@
+{"_meta": {"repo": "local/tiny_repo", "sha": "fixture", "source": "local:tests/fixtures/tiny_repo", "note": "Smoke-test dataset for the pipeline. Too small to report as a result."}}
+{"id": "t01", "question": "How are refunds processed and when are they rejected?", "expected": [{"path": "shop/payments.py", "start": 33, "end": 38}], "answerable": true}
+{"id": "t02", "question": "What is the maximum number of days for a refund?", "expected": [{"path": "shop/payments.py", "start": 5, "end": 5}], "answerable": true}
+{"id": "t03", "question": "Which amounts does validate_amount reject?", "expected": [{"path": "shop/payments.py", "start": 15, "end": 20}], "answerable": true}
+{"id": "t04", "question": "How is data stored?", "expected": [{"path": "shop/db.py", "start": 5, "end": 12}, {"path": "shop/db.py", "start": 21, "end": 26}], "answerable": true}
+{"id": "t05", "question": "What columns does the orders table have?", "expected": [{"path": "shop/db.py", "start": 5, "end": 12}], "answerable": true}
+{"id": "t06", "question": "How do I format a price in cents as dollars?", "expected": [{"path": "web/cart.ts", "start": 9, "end": 12}], "answerable": true}
+{"id": "t07", "question": "What happens when I add an item that is already in the cart?", "expected": [{"path": "web/cart.ts", "start": 17, "end": 24}], "answerable": true}
+{"id": "t08", "question": "Where is the entry point of the HTTP server and which port does it use?", "expected": [{"path": "api/Server.java", "start": 10, "end": 18}], "answerable": true}
+{"id": "t09", "question": "How does the health check endpoint respond?", "expected": [{"path": "api/Server.java", "start": 20, "end": 26}], "answerable": true}
+{"id": "t10", "question": "What does Pop do when the job queue is empty?", "expected": [{"path": "worker/queue.go", "start": 22, "end": 30}], "answerable": true}
+{"id": "t11", "question": "How do I set up the database?", "expected": [{"path": "README.md", "start": 5, "end": 7}, {"path": "shop/db.py", "start": 33, "end": 35}], "answerable": true}
+{"id": "t12", "question": "What is the free shipping threshold?", "expected": [{"path": "web/cart.ts", "start": 31, "end": 31}], "answerable": true}
+{"id": "t13", "question": "How does the app authenticate users with OAuth?", "expected": [], "answerable": false}
+{"id": "t14", "question": "Which Kubernetes namespace is the service deployed to?", "expected": [], "answerable": false}

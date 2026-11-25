@@ -1,0 +1,41 @@
+# Build the Python image, push it to ECR and roll the ECS services.
+# Does nothing until the repository variables below are set (see infra/aws/README.md):
+#   AWS_REGION, AWS_DEPLOY_ROLE_ARN (OIDC role), ECR_REPOSITORY, ECS_CLUSTER, ECS_API_SERVICE, ECS_WORKER_SERVICE
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  id-token: write   # GitHub OIDC -> AWS role, no long-lived keys in secrets
+  contents: read
+
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success' && vars.AWS_DEPLOY_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}
+          TAG: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          docker build -f infra/docker/python.Dockerfile -t "$IMAGE:$TAG" -t "$IMAGE:latest" .
+          docker push "$IMAGE:$TAG"
+          docker push "$IMAGE:latest"
+      - name: Roll ECS services (task definitions use the :latest tag)
+        run: |
+          aws ecs update-service --cluster "${{ vars.ECS_CLUSTER }}" --service "${{ vars.ECS_API_SERVICE }}" --force-new-deployment
+          aws ecs update-service --cluster "${{ vars.ECS_CLUSTER }}" --service "${{ vars.ECS_WORKER_SERVICE }}" --force-new-deployment
